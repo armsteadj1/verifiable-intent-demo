@@ -71,7 +71,7 @@ function DemoApp() {
 
         {/* Right panel — Step content */}
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-6 overflow-x-hidden">
             <StepPanel
               step={step}
               stepNumber={currentStep}

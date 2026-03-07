@@ -242,7 +242,7 @@ function DecodedTab({ jwt, disclosures }: { jwt: string; disclosures: string[] }
           </div>
           <div className="space-y-2">
             {decodedDisclosures.map(({ key, value }) => (
-              <div key={key} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded p-2">
+              <div key={key} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded p-2 break-all overflow-hidden">
                 <span className="text-[#A29BFE]">{key}</span>
                 <span className="text-[#636E72]">: </span>
                 <JsonInline value={value} />
@@ -510,7 +510,7 @@ function JsonInline({ value }: { value: unknown }): JSX.Element {
   if (typeof value === 'string') return <span className="text-[#55EFC4]">&quot;{value}&quot;</span>
   if (typeof value === 'number') return <span className="text-[#FD9644]">{value}</span>
   if (typeof value === 'boolean') return <span className="text-[#74B9FF]">{String(value)}</span>
-  return <span className="text-[#888]">{JSON.stringify(value)}</span>
+  return <span className="text-[#888] break-all whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</span>
 }
 
 // ─── Helper to get credential from context ────────────────────────────────────
