@@ -9,11 +9,11 @@ type ActorConfig = {
 }
 
 export const ACTOR_CONFIGS: Record<ActorId, ActorConfig> = {
-  mastercard: {
-    label: 'Mastercard VI',
-    icon: '🔵',
-    color: '#EB5757',
-    description: 'Credential Provider — issues L1 SD-JWT, anchors the trust chain',
+  bt: {
+    label: 'BT Vault',
+    icon: '🔐',
+    color: '#6C5CE7',
+    description: 'Credential Provider — issues L1, hosts wallet, holds payment_instrument token. The root of the trust chain.',
   },
   user: {
     label: 'User',

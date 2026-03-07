@@ -8,12 +8,12 @@ type ConnectionDef = {
 }
 
 export const CONNECTIONS: ConnectionDef[] = [
-  { from: 'mastercard', to: 'user' },
+  { from: 'bt', to: 'user' },
   { from: 'user', to: 'agent' },
   { from: 'agent', to: 'merchant' },
   { from: 'agent', to: 'network' },
-  { from: 'mastercard', to: 'merchant' },
-  { from: 'mastercard', to: 'network' },
+  { from: 'bt', to: 'merchant' },
+  { from: 'bt', to: 'network' },
 ]
 
 type Props = {

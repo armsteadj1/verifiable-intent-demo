@@ -90,13 +90,13 @@ async function buildCredentials(): Promise<Omit<CryptoContextValue, 'ready'>> {
 
   const checkoutHash = await sha256Base64url(checkoutJwt)
 
-  // Build L1 — SD-JWT (Mastercard → User)
+  // Build L1 — SD-JWT (BT → User)
   const L1 = await buildSdJwt({
     signerKey: keys.credentialProvider,
     typ: 'sd+jwt',
     payload: {
-      iss: 'https://credentials.mastercard.com',
-      vct: 'https://credentials.mastercard.com/card',
+      iss: 'https://credentials.basis-theory.com',
+      vct: 'https://credentials.basis-theory.com/card',
       sub: 'user-demo-001',
       iat: now,
       exp: now + 365 * 24 * 3600,
