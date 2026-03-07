@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #090909;
+  --bg-surface: #111111;
+  --bg-elevated: #1a1a1a;
+  --border: #222222;
+  --text-primary: #f0f0f0;
+  --text-secondary: #888888;
+  --text-muted: #3a3a3a;
+  --accent-mastercard: #EB5757;
+  --accent-user: #74B9FF;
+  --accent-agent: #A29BFE;
+  --accent-merchant: #55EFC4;
+  --accent-network: #6C5CE7;
+  --syn-key: #A29BFE;
+  --syn-string: #55EFC4;
+  --syn-number: #FD9644;
+  --syn-boolean: #74B9FF;
+  --syn-hash: #636E72;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+/* Connection line animation */
+@keyframes dashTravel {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px currentColor; }
+  50% { opacity: 0.7; box-shadow: 0 0 20px currentColor; }
+}
+
+@keyframes checklist-item-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes step-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-step-fade {
+  animation: step-fade 0.15s ease-in-out;
+}
+
+.checklist-item {
+  animation: checklist-item-in 0.3s ease-out both;
+}
+
+/* Prevent content overflow in data display panels */
+.data-display-wrap pre,
+.data-display-wrap code,
+.data-display-wrap .font-mono {
+  overflow-wrap: break-word;
+  word-break: break-all;
+}
+
+.data-display-wrap > div {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Prevent long crypto strings (keys, hashes, JWTs) from overflowing */
+.break-all { word-break: break-all; }
+pre, code { max-width: 100%; overflow-wrap: break-word; }
