@@ -5,7 +5,7 @@ import { ConnectionLine } from './ConnectionLine'
 type Position = { x: number; y: number }
 
 const POSITIONS: Record<ActorId, Position> = {
-  mastercard: { x: 100, y: 70 },
+  bt: { x: 100, y: 70 },
   user: { x: 280, y: 70 },
   agent: { x: 190, y: 160 },
   merchant: { x: 280, y: 250 },

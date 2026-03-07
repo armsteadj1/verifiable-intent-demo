@@ -40,7 +40,7 @@ function KeysDisplay() {
       {ready && keys ? (
         <div className="space-y-2">
           {[
-            { label: 'Credential Provider (Mastercard)', kid: keys.credentialProvider.kid, color: '#EB5757' },
+            { label: 'BT (Credential Provider)', kid: keys.credentialProvider.kid, color: '#6C5CE7' },
             { label: 'User', kid: keys.user.kid, color: '#74B9FF' },
             { label: 'AI Agent', kid: keys.agent.kid, color: '#A29BFE' },
             { label: 'Merchant', kid: keys.merchant.kid, color: '#55EFC4' },
@@ -270,7 +270,7 @@ function SdHashTab({ sdHash }: { sdHash?: string }) {
 // ─── Checklist Display ───────────────────────────────────────────────────────
 
 const MERCHANT_CHECKLIST = [
-  { label: 'L1 signature valid (Mastercard\'s key — JWKS endpoint)', ok: true },
+  { label: 'L1 signature valid (BT\'s key — JWKS endpoint)', ok: true },
   { label: 'L2 signed by key in L1 cnf.jwk (user\'s key)', ok: true },
   { label: 'L2 typ: kb-sd-jwt+kb ✓', ok: true },
   { label: 'sd_hash(L2) = hash(L1) ✓', ok: true },
@@ -285,7 +285,7 @@ const MERCHANT_CHECKLIST = [
 ]
 
 const NETWORK_CHECKLIST = [
-  { label: 'L1 signature valid (Mastercard\'s key)', ok: true },
+  { label: 'L1 signature valid (BT\'s key)', ok: true },
   { label: 'L2 signed by key in L1 cnf.jwk ✓', ok: true },
   { label: 'L2 typ: kb-sd-jwt+kb ✓', ok: true },
   { label: 'sd_hash(L2) = hash(L1) ✓', ok: true },
@@ -362,7 +362,7 @@ function SplitTableDisplay() {
     { label: 'What they saw', merchant: 'cart contents', network: 'payment amount + method' },
     { label: 'What was hidden', merchant: 'payment details ✗', network: 'cart contents ✗' },
     { label: 'Who signed it', merchant: 'agent (verified)', network: 'agent (verified)' },
-    { label: 'Chain rooted in', merchant: 'Mastercard L1', network: 'Mastercard L1' },
+    { label: 'Chain rooted in', merchant: 'BT L1', network: 'BT L1' },
     { label: 'Card number seen', merchant: 'NO', network: 'NO (token only)' },
   ]
 
@@ -407,7 +407,7 @@ function JsonSummaryDisplay({ crypto: _crypto }: { crypto: ReturnType<typeof use
     item: 'Sony WH-1000XM5',
     amount_charged_usd: 199.00,
     credential_chain: {
-      L1: 'issued by Mastercard VI ✓',
+      L1: 'issued by BT Vault ✓',
       L2: 'signed by User ✓',
       L3a: 'signed by Agent → verified by Payment Network ✓',
       L3b: 'signed by Agent → verified by Merchant ✓',
