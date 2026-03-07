@@ -13,20 +13,28 @@ type Props = {
 export function DataDisplay({ dataType, dataKey, stepId }: Props) {
   const crypto = useCrypto()
 
-  switch (dataType) {
-    case 'keys':
-      return <KeysDisplay />
-    case 'sd-jwt':
-      return <SdJwtDisplay dataKey={dataKey} />
-    case 'checklist':
-      return <ChecklistDisplay dataKey={dataKey} stepId={stepId} />
-    case 'split-table':
-      return <SplitTableDisplay />
-    case 'json':
-      return <JsonSummaryDisplay crypto={crypto} />
-    default:
-      return <pre className="text-[#888] text-xs font-mono">No data</pre>
-  }
+  const inner = (() => {
+    switch (dataType) {
+      case 'keys':
+        return <KeysDisplay />
+      case 'sd-jwt':
+        return <SdJwtDisplay dataKey={dataKey} />
+      case 'checklist':
+        return <ChecklistDisplay dataKey={dataKey} stepId={stepId} />
+      case 'split-table':
+        return <SplitTableDisplay />
+      case 'json':
+        return <JsonSummaryDisplay crypto={crypto} />
+      default:
+        return <pre className="text-[#888] text-xs font-mono">No data</pre>
+    }
+  })()
+
+  return (
+    <div className="w-full max-w-full overflow-x-hidden [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_.break-all]:break-all">
+      {inner}
+    </div>
+  )
 }
 
 // ─── Keys Display ────────────────────────────────────────────────────────────
@@ -137,7 +145,7 @@ function PlainJwtDisplay({ jwt }: { jwt: string }) {
         ))}
       </div>
       {tab === 'encoded' && (
-        <div className="font-mono text-xs text-[#888] break-all bg-[#0d0d0d] p-3 rounded border border-[#1a1a1a]">
+        <div className="font-mono text-xs text-[#888] break-all bg-[#0d0d0d] p-3 rounded border border-[#1a1a1a] overflow-x-auto max-w-full">
           <span className="text-[#EB5757]">{parts[0]}</span>
           <span className="text-[#636E72]">.</span>
           <span className="text-[#74B9FF]">{parts[1].substring(0, 60)}...</span>
@@ -171,7 +179,7 @@ function EncodedTab({ encoded }: { encoded: string }) {
   const disclosures = parts.slice(1)
 
   return (
-    <div className="font-mono text-xs bg-[#0d0d0d] p-3 rounded border border-[#1a1a1a] space-y-2">
+    <div className="font-mono text-xs bg-[#0d0d0d] p-3 rounded border border-[#1a1a1a] space-y-2 overflow-x-auto max-w-full">
       <div className="break-all">
         <span className="text-[#EB5757]">{jwtParts[0]}</span>
         <span className="text-[#636E72]">.</span>

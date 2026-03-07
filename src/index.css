@@ -82,3 +82,20 @@ body {
 .checklist-item {
   animation: checklist-item-in 0.3s ease-out both;
 }
+
+/* Prevent content overflow in data display panels */
+.data-display-wrap pre,
+.data-display-wrap code,
+.data-display-wrap .font-mono {
+  overflow-wrap: break-word;
+  word-break: break-all;
+}
+
+.data-display-wrap > div {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Prevent long crypto strings (keys, hashes, JWTs) from overflowing */
+.break-all { word-break: break-all; }
+pre, code { max-width: 100%; overflow-wrap: break-word; }
