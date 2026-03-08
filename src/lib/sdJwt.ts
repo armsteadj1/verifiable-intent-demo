@@ -1,5 +1,5 @@
 import { SignJWT } from 'jose'
-import { makeDisclosureHash, sha256Base64url, type KeyPairWithJwk } from './crypto'
+import { makeDisclosureHash, makeArrayDisclosureHash, sha256Base64url, type KeyPairWithJwk } from './crypto'
 
 export type SdJwtResult = {
   jwt: string
@@ -9,19 +9,21 @@ export type SdJwtResult = {
   sdHash?: string
 }
 
-// Build a JWT with _sd selective disclosure claims
+// Build a JWT with _sd selective disclosure claims and/or delegate_payload array disclosures
 export async function buildSdJwt(params: {
   signerKey: KeyPairWithJwk
   typ: string
   payload: Record<string, unknown>
-  sdClaims: Record<string, unknown>
+  sdClaims?: Record<string, unknown>
+  delegateClaims?: unknown[]
   sdHash?: string
 }): Promise<SdJwtResult> {
-  const { signerKey, typ, payload, sdClaims, sdHash } = params
+  const { signerKey, typ, payload, sdClaims = {}, delegateClaims = [], sdHash } = params
 
   const disclosures: string[] = []
   const sdHashes: string[] = []
 
+  // Object-property disclosures → _sd
   for (const [key, value] of Object.entries(sdClaims)) {
     const salt = crypto.randomUUID().replace(/-/g, '')
     const { hash, disclosure } = await makeDisclosureHash(salt, key, value)
@@ -29,10 +31,20 @@ export async function buildSdJwt(params: {
     sdHashes.push(hash)
   }
 
+  // Array-element disclosures → delegate_payload
+  const delegateRefs: Array<{ '...': string }> = []
+  for (const value of delegateClaims) {
+    const salt = crypto.randomUUID().replace(/-/g, '')
+    const { hash, disclosure } = await makeArrayDisclosureHash(salt, value)
+    disclosures.push(disclosure)
+    delegateRefs.push({ '...': hash })
+  }
+
   const jwtPayload: Record<string, unknown> = {
     ...payload,
     ...(sdHash ? { sd_hash: sdHash } : {}),
-    _sd: sdHashes,
+    ...(sdHashes.length > 0 ? { _sd: sdHashes } : {}),
+    ...(delegateRefs.length > 0 ? { delegate_payload: delegateRefs } : {}),
     _sd_alg: 'sha-256',
   }
 
@@ -125,7 +137,7 @@ export async function buildL3Jwt(params: {
 }
 
 // Build L2 selective sd_hash over specific disclosures
-export async function buildSelectiveSdHash(l2Encoded: string, disclosureKeys: string[]): Promise<string> {
+export async function buildSelectiveSdHash(l2Encoded: string, matchTerms: string[]): Promise<string> {
   // Parse L2 disclosures
   const parts = l2Encoded.split('~')
   const baseJwt = parts[0]
@@ -138,8 +150,17 @@ export async function buildSelectiveSdHash(l2Encoded: string, disclosureKeys: st
       const decoded = JSON.parse(new TextDecoder().decode(
         Uint8Array.from(atob(d.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
       ))
-      if (Array.isArray(decoded) && disclosureKeys.includes(decoded[1])) {
-        selected.push(d)
+      if (Array.isArray(decoded)) {
+        if (decoded.length === 3 && matchTerms.includes(decoded[1])) {
+          // 3-element object-property disclosure: [salt, key, value]
+          selected.push(d)
+        } else if (decoded.length === 2 && typeof decoded[1] === 'object' && decoded[1]?.vct) {
+          // 2-element array disclosure: [salt, value] — match by vct
+          const vct = decoded[1].vct as string
+          if (matchTerms.some(term => vct.includes(term))) {
+            selected.push(d)
+          }
+        }
       }
     } catch {
       // skip invalid disclosures

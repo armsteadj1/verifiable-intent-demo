@@ -50,6 +50,13 @@ export async function makeDisclosureHash(salt: string, key: string, value: unkno
   return { hash, disclosure }
 }
 
+export async function makeArrayDisclosureHash(salt: string, value: unknown): Promise<{ hash: string; disclosure: string }> {
+  const disclosureArray = JSON.stringify([salt, value])
+  const disclosure = base64urlEncode(new TextEncoder().encode(disclosureArray))
+  const hash = await sha256Base64url(disclosure)
+  return { hash, disclosure }
+}
+
 export function decodeJwtParts(jwt: string): { header: Record<string, unknown>; payload: Record<string, unknown> } {
   const parts = jwt.split('.')
   const decode = (s: string) => JSON.parse(new TextDecoder().decode(base64urlDecode(s)))

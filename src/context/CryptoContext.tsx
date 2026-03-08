@@ -112,17 +112,21 @@ async function buildCredentials(): Promise<Omit<CryptoContextValue, 'ready'>> {
   const L1sdHash = await sha256Base64url(L1.encoded)
 
   // Build L2 — KB-SD-JWT+KB (User → Agent)
+  // Autonomous mode: open mandates with typed constraints
   const checkoutMandate = {
     vct: 'mandate.checkout.open',
-    merchant_category: 'electronics',
-    allowed_merchants: ['electronics-store-demo'],
+    constraints: [
+      { type: 'mandate.checkout.sku_allowlist', skus: ['SONY-WH1000XM5'] },
+      { type: 'mandate.checkout.merchant_allowlist', merchants: [{ name: 'Demo Electronics', website: 'https://electronics-store.example' }] },
+    ],
     cnf: { kid: keys.agent.kid, jwk: keys.agent.publicJwk },
   }
   const paymentMandate = {
     vct: 'mandate.payment.open',
-    payment_instrument: { type: 'card', token: 'tok_demo_4242' },
-    currency: 'USD',
-    amount_range: { min: 0, max: 250 },
+    constraints: [
+      { type: 'payment.budget_limit', currency: 'USD', amount: 25000 },
+      { type: 'payment.payee_allowlist', payees: [{ name: 'Demo Electronics', website: 'https://electronics-store.example' }] },
+    ],
     cnf: { kid: keys.agent.kid, jwk: keys.agent.publicJwk },
   }
 
@@ -135,17 +139,15 @@ async function buildCredentials(): Promise<Omit<CryptoContextValue, 'ready'>> {
       iat: now,
       exp: now + 24 * 3600,
     },
-    sdClaims: {
-      checkout_mandate: checkoutMandate,
-      payment_mandate: paymentMandate,
-    },
+    delegateClaims: [checkoutMandate, paymentMandate],
     sdHash: L1sdHash,
   })
 
-  // Build selective sd_hash for L3a (payment + merchant disclosures from L2)
-  const L3aSelectiveSdHash = await buildSelectiveSdHash(L2.encoded, ['payment_mandate'])
+  // Build selective sd_hash for L3a (payment delegate disclosure from L2)
+  const L3aSelectiveSdHash = await buildSelectiveSdHash(L2.encoded, ['payment'])
 
   // Build L3a — KB-SD-JWT (Agent → Payment Network)
+  // Terminal: concrete values fulfilling L2 constraints
   const L3a = await buildSdJwt({
     signerKey: keys.agent,
     typ: 'kb-sd-jwt',
@@ -155,23 +157,22 @@ async function buildCredentials(): Promise<Omit<CryptoContextValue, 'ready'>> {
       iat: now,
       exp: now + 300,
     },
-    sdClaims: {
-      payment_mandate: {
-        vct: 'mandate.payment',
-        payment_instrument: { type: 'card', token: 'tok_demo_4242' },
-        currency: 'USD',
-        amount: 19900,
-        payee: 'electronics-store-demo',
-        transaction_id: checkoutHash,
-      },
-    },
+    delegateClaims: [{
+      vct: 'mandate.payment',
+      payment_instrument: { type: 'card', token: 'tok_demo_4242' },
+      currency: 'USD',
+      amount: 19900,
+      payee: 'electronics-store-demo',
+      transaction_id: checkoutHash,
+    }],
     sdHash: L3aSelectiveSdHash,
   })
 
-  // Build selective sd_hash for L3b (checkout disclosures from L2)
-  const L3bSelectiveSdHash = await buildSelectiveSdHash(L2.encoded, ['checkout_mandate'])
+  // Build selective sd_hash for L3b (checkout delegate disclosure from L2)
+  const L3bSelectiveSdHash = await buildSelectiveSdHash(L2.encoded, ['checkout'])
 
   // Build L3b — KB-SD-JWT (Agent → Merchant)
+  // Terminal: concrete values fulfilling L2 constraints
   const L3b = await buildSdJwt({
     signerKey: keys.agent,
     typ: 'kb-sd-jwt',
@@ -181,13 +182,11 @@ async function buildCredentials(): Promise<Omit<CryptoContextValue, 'ready'>> {
       iat: now,
       exp: now + 300,
     },
-    sdClaims: {
-      checkout_mandate: {
-        vct: 'mandate.checkout',
-        checkout_jwt: checkoutJwt,
-        checkout_hash: checkoutHash,
-      },
-    },
+    delegateClaims: [{
+      vct: 'mandate.checkout',
+      checkout_jwt: checkoutJwt,
+      checkout_hash: checkoutHash,
+    }],
     sdHash: L3bSelectiveSdHash,
   })
 

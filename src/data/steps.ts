@@ -37,7 +37,7 @@ export const steps: Step[] = [
   {
     id: 3,
     title: 'L2 Creation (User → Agent)',
-    narrative: 'The user sets the rules. This KB-SD-JWT+KB is signed with the user\'s private key. It binds the agent\'s public key, sets spend constraints, and chains back to L1 via sd_hash. The agent cannot exceed what\'s written here.',
+    narrative: 'The user sets constraints — not final values. This KB-SD-JWT+KB uses open mandates (mandate.checkout.open, mandate.payment.open) with typed constraint arrays: SKU allowlists, merchant allowlists, budget limits. The agent can act autonomously within these bounds.',
     activeActors: ['user', 'agent'],
     activeConnection: ['user', 'agent'],
     dataType: 'sd-jwt',
@@ -59,7 +59,7 @@ export const steps: Step[] = [
   {
     id: 5,
     title: 'Agent Creates L3a (Payment Mandate → Network)',
-    narrative: 'The agent builds the payment credential for the payment network. It contains the final payment values, fulfilling the L2 constraints. The merchant will never see this credential.',
+    narrative: 'The agent builds the payment credential for the payment network. It contains concrete values (mandate.payment) that fulfill the L2 open-mandate constraints — amount within budget, payee in allowlist. The merchant will never see this credential.',
     activeActors: ['agent', 'network'],
     activeConnection: ['agent', 'network'],
     dataType: 'sd-jwt',
@@ -70,7 +70,7 @@ export const steps: Step[] = [
   {
     id: 6,
     title: 'Agent Creates L3b (Checkout Mandate → Merchant)',
-    narrative: 'The agent builds the checkout credential for the merchant. It contains the cart details. The payment network will never see this credential.',
+    narrative: 'The agent builds the checkout credential for the merchant. It contains concrete values (mandate.checkout) that fulfill the L2 open-mandate constraints — SKU in allowlist, merchant in allowlist. The payment network will never see this credential.',
     activeActors: ['agent', 'merchant'],
     activeConnection: ['agent', 'merchant'],
     dataType: 'sd-jwt',

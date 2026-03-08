@@ -220,6 +220,10 @@ function DecodedTab({ jwt, disclosures }: { jwt: string; disclosures: string[] }
       const json = JSON.parse(atob(padded))
       if (Array.isArray(json) && json.length >= 3) {
         decodedDisclosures.push({ key: json[1], value: json[2] })
+      } else if (Array.isArray(json) && json.length === 2 && typeof json[1] === 'object') {
+        // Array disclosure (delegate_payload): [salt, value]
+        const vct = (json[1] as Record<string, unknown>)?.vct as string || 'delegate'
+        decodedDisclosures.push({ key: vct, value: json[1] })
       }
     } catch { /* skip */ }
   }
@@ -283,7 +287,7 @@ const MERCHANT_CHECKLIST = [
   { label: 'sd_hash(L2) = hash(L1) ✓', ok: true },
   { label: 'L3b signed by key matching L2 mandate cnf.kid (agent\'s key)', ok: true },
   { label: 'L3b typ: kb-sd-jwt ✓', ok: true },
-  { label: 'sd_hash(L3b) = hash(L2 base + checkout + item disclosures) ✓', ok: true },
+  { label: 'sd_hash(L3b) = hash(L2 base + checkout delegate disclosure) ✓', ok: true },
   { label: 'L3b payload contains NO cnf claim ✓ (terminal delegation)', ok: true },
   { label: 'checkout_jwt contents match merchant\'s own catalog records', ok: true },
   { label: 'checkout_hash = B64U(SHA-256(checkout_jwt)) recomputed ✓', ok: true },
@@ -298,12 +302,11 @@ const NETWORK_CHECKLIST = [
   { label: 'sd_hash(L2) = hash(L1) ✓', ok: true },
   { label: 'L3a signed by key matching L2 mandate cnf.kid (agent\'s key)', ok: true },
   { label: 'L3a typ: kb-sd-jwt ✓', ok: true },
-  { label: 'sd_hash(L3a) = hash(L2 base + payment + merchant disclosures) ✓', ok: true },
+  { label: 'sd_hash(L3a) = hash(L2 base + payment delegate disclosure) ✓', ok: true },
   { label: 'L3a payload contains NO cnf claim ✓', ok: true },
-  { label: 'Amount: $199.00 ≤ ceiling $250.00 ✓', ok: true },
+  { label: 'Amount: $199.00 ≤ budget_limit $250.00 (constraint satisfied) ✓', ok: true },
   { label: 'Currency: USD ✓', ok: true },
-  { label: 'Merchant category: electronics ✓', ok: true },
-  { label: 'Payee: electronics-store-demo (in allowed_merchants) ✓', ok: true },
+  { label: 'Payee: electronics-store-demo (in payee_allowlist constraint) ✓', ok: true },
   { label: 'One L3 per mandate pair — not replayed ✓', ok: true },
   { label: 'Credential not expired ✓', ok: true },
   { label: 'BT Vault: tok_demo_4242 → BT Vault → [Mastercard network] (PAN never exposed)', ok: true },
@@ -485,7 +488,7 @@ function JsonValue({ value, indent, highlightSd }: { value: unknown; indent: num
       <>
         <span className="text-[#888]">{'{'}</span>
         {entries.map(([k, v], i) => {
-          const isSdKey = k === '_sd'
+          const isSdKey = k === '_sd' || k === 'delegate_payload' || k === '...'
           return (
             <span key={k}>
               {'\n'}{pad}
