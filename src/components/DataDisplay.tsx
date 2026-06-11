@@ -17,6 +17,8 @@ export function DataDisplay({ dataType, dataKey, stepId }: Props) {
     switch (dataType) {
       case 'keys':
         return <KeysDisplay />
+      case 'machine-keys':
+        return <MachineKeysDisplay />
       case 'sd-jwt':
         return <SdJwtDisplay dataKey={dataKey} />
       case 'checklist':
@@ -25,6 +27,14 @@ export function DataDisplay({ dataType, dataKey, stepId }: Props) {
         return <SplitTableDisplay />
       case 'json':
         return <JsonSummaryDisplay crypto={crypto} />
+      case 'machine-json':
+        return <MachineJsonDisplay dataKey={dataKey} />
+      case 'machine-ledger':
+        return <MachineLedgerDisplay />
+      case 'machine-checklist':
+        return <MachineChecklistDisplay stepId={stepId} />
+      case 'funding-rails':
+        return <FundingRailsDisplay />
       default:
         return <pre className="text-[#888] text-xs font-mono">No data</pre>
     }
@@ -33,6 +43,39 @@ export function DataDisplay({ dataType, dataKey, stepId }: Props) {
   return (
     <div className="w-full max-w-full overflow-x-hidden [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_.break-all]:break-all">
       {inner}
+    </div>
+  )
+}
+
+function MachineKeysDisplay() {
+  const { keys, ready } = useCrypto()
+
+  return (
+    <div className="font-mono text-xs space-y-2">
+      <div className="text-[#888] mb-3">Same browser-generated ES256 keys, now mapped to a machine-payments spend channel</div>
+      {ready && keys ? (
+        <div className="space-y-2">
+          {[
+            { label: 'BT / PSP Control Layer', kid: keys.credentialProvider.kid, color: '#6C5CE7' },
+            { label: 'Business Spend Owner', kid: keys.user.kid, color: '#74B9FF' },
+            { label: 'Risk Research Agent', kid: keys.agent.kid, color: '#A29BFE' },
+            { label: 'Merchant/API', kid: keys.merchant.kid, color: '#55EFC4' },
+          ].map(({ label, kid, color }) => (
+            <div key={kid} className="flex items-center justify-between gap-3 bg-[#111] border border-[#222] rounded px-3 py-2">
+              <span style={{ color }} className="font-medium">{label}</span>
+              <div className="flex items-center gap-3 text-[#888]">
+                <span className="text-[#636E72]">EC P-256</span>
+                <span>kid: <span className="text-[#55EFC4]">{kid}</span></span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-[#A29BFE] animate-pulse">Generating keypairs...</div>
+      )}
+      <div className="mt-3 text-[#636E72] border-t border-[#1a1a1a] pt-2">
+        The agent signs VIUs with its delegated key. BT/PSP anchors the ASL and settlement artifacts.
+      </div>
     </div>
   )
 }
@@ -524,6 +567,171 @@ function getCredential(crypto: ReturnType<typeof useCrypto>, dataKey: string): S
     case 'L3a': return crypto.L3a
     case 'L3b': return crypto.L3b
     case 'checkoutJwt': return crypto.checkoutJwt
+    case 'machineAsl': return crypto.machinePayments?.aslJwt ?? null
+    case 'machineViu1': return crypto.machinePayments?.vius[0] ?? null
+    case 'machineSettlement': return crypto.machinePayments?.settlementJwt ?? null
     default: return null
   }
+}
+
+function MachineJsonDisplay({ dataKey }: { dataKey: string }) {
+  const { machinePayments } = useCrypto()
+
+  if (!machinePayments) {
+    return <div className="text-[#A29BFE] animate-pulse font-mono text-xs">Building machine payment artifacts...</div>
+  }
+
+  const data = (() => {
+    switch (dataKey) {
+      case 'machineChannel': return machinePayments.channel
+      case 'machineChallenge': return machinePayments.challenge402
+      case 'machineSummary': return machinePayments.summary
+      default: return machinePayments.summary
+    }
+  })()
+
+  return <JsonBlock data={data} />
+}
+
+function MachineLedgerDisplay() {
+  const { machinePayments } = useCrypto()
+
+  if (!machinePayments) {
+    return <div className="text-[#A29BFE] animate-pulse font-mono text-xs">Building VIU ledger...</div>
+  }
+
+  return (
+    <div className="font-mono text-xs space-y-4">
+      <div className="grid gap-2">
+        {machinePayments.ledger.map((entry, index) => (
+          <div key={String(entry.request_id)} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded p-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="text-[#A29BFE] font-semibold">VIU #{entry.sequence as number}</div>
+              <div className="text-[#55EFC4]">{formatCents(entry.cumulative_cents as number)} cumulative</div>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-2 text-[#888]">
+              <div>
+                <div className="text-[#636E72]">Request</div>
+                <div className="text-[#ccc]">{entry.description as string}</div>
+              </div>
+              <div>
+                <div className="text-[#636E72]">Increment</div>
+                <div className="text-[#ccc]">{formatCents(entry.amount_cents as number)}</div>
+              </div>
+              <div>
+                <div className="text-[#636E72]">Remaining cap</div>
+                <div className="text-[#ccc]">{formatCents(entry.remaining_cents as number)}</div>
+              </div>
+            </div>
+            <div className="mt-2 text-[#636E72] break-all">
+              signed token: <span className="text-[#55EFC4]">{machinePayments.vius[index].slice(0, 64)}...</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-[#111] border-l-2 border-[#FD9644] rounded-r px-3 py-2 text-[#888]">
+        The merchant only needs the latest cumulative VIU for settlement. Earlier VIUs are audit trail, not separate card charges.
+      </div>
+    </div>
+  )
+}
+
+const MACHINE_VERIFY_CHECKLIST = [
+  { label: 'ASL signature chains to BT / PSP control layer', ok: true },
+  { label: 'ASL references allowed merchant: supplier-risk-api', ok: true },
+  { label: 'Channel id in VIU matches opened merchant channel', ok: true },
+  { label: 'VIU signed by delegated agent key', ok: true },
+  { label: 'Sequence increases monotonically: 1 → 2 → 3', ok: true },
+  { label: 'Latest cumulative amount: $13.50 ≤ $25.00 cap', ok: true },
+  { label: 'Merchant can verify locally before settlement', ok: true },
+  { label: 'No PAN or processor credential exposed to the agent', ok: true },
+  { label: 'CHANNEL TAB VERIFIED', ok: true, final: true },
+]
+
+function MachineChecklistDisplay({ stepId }: { stepId: number }) {
+  const [visible, setVisible] = useState(0)
+
+  useEffect(() => {
+    setVisible(0)
+    let current = 0
+    const interval = setInterval(() => {
+      current++
+      setVisible(current)
+      if (current >= MACHINE_VERIFY_CHECKLIST.length) clearInterval(interval)
+    }, 100)
+    return () => clearInterval(interval)
+  }, [stepId])
+
+  return (
+    <div className="font-mono text-xs space-y-1">
+      <div className="text-[#888] mb-3">Verifying latest VIU against ASL and channel...</div>
+      {MACHINE_VERIFY_CHECKLIST.slice(0, visible).map((item, index) => (
+        <div
+          key={item.label}
+          className={clsx(
+            'checklist-item flex items-start gap-2 py-0.5',
+            item.final ? 'mt-3 pt-3 border-t border-[#222]' : ''
+          )}
+          style={{ animationDelay: `${index * 80}ms` }}
+        >
+          <span className="text-[#55EFC4] shrink-0">✅</span>
+          <span className={item.final ? 'text-[#55EFC4] font-semibold' : 'text-[#ccc]'}>
+            {item.label}
+          </span>
+        </div>
+      ))}
+      {visible >= MACHINE_VERIFY_CHECKLIST.length && (
+        <div className="mt-3 pt-3 border-t border-[#1a1a1a] space-y-1 text-[#888]">
+          <div>Merchant saw: request ids, prices, signatures, cumulative tab ✓</div>
+          <div>Merchant did not see: raw card, network token, business funding source ✗</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FundingRailsDisplay() {
+  const rails = [
+    {
+      name: 'Card / network token',
+      status: 'default',
+      detail: 'BT resolves the stored credential or network token inside the processor boundary.',
+    },
+    {
+      name: 'Stablecoin escrow',
+      status: 'compatible',
+      detail: 'The ASL can be backed by pre-funded escrow while the agent still sees the same channel API.',
+    },
+    {
+      name: 'Line of credit',
+      status: 'compatible',
+      detail: 'The business or PSP supplies credit; settlement reconciles the cumulative VIU later.',
+    },
+    {
+      name: 'Virtual card fallback',
+      status: 'fallback',
+      detail: 'When agentic network credential coverage fails, BT can issue a scoped card for the same mandate.',
+    },
+  ]
+
+  return (
+    <div className="font-mono text-xs grid gap-2">
+      {rails.map(rail => (
+        <div key={rail.name} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded p-3">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="text-[#f0f0f0] font-semibold">{rail.name}</div>
+            <div className="text-[#A29BFE] uppercase text-[10px] tracking-wider">{rail.status}</div>
+          </div>
+          <div className="text-[#888] leading-relaxed">{rail.detail}</div>
+        </div>
+      ))}
+      <div className="mt-2 bg-[#111] border border-[#222] rounded p-3 text-[#888]">
+        One agent-facing spend channel. Multiple funding rails behind it. This is the BT control-layer wedge.
+      </div>
+    </div>
+  )
+}
+
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
 }

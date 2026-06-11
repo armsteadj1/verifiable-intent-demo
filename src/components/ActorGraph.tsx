@@ -1,6 +1,7 @@
 import type { ActorId } from '../data/steps'
 import { ActorNode } from './ActorNode'
 import { ConnectionLine } from './ConnectionLine'
+import type { DemoMode } from '../App'
 
 type Position = { x: number; y: number }
 
@@ -16,9 +17,10 @@ type Props = {
   activeActors: ActorId[]
   activeConnection: [ActorId, ActorId] | null
   allGlow?: boolean
+  mode?: DemoMode
 }
 
-export function ActorGraph({ activeActors, activeConnection, allGlow }: Props) {
+export function ActorGraph({ activeActors, activeConnection, allGlow, mode = 'vi' }: Props) {
   return (
     <div className="relative bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg" style={{ width: 380, height: 320 }}>
       <ConnectionLine
@@ -33,6 +35,7 @@ export function ActorGraph({ activeActors, activeConnection, allGlow }: Props) {
           isActive={activeActors.includes(id)}
           allGlow={allGlow}
           position={POSITIONS[id]}
+          mode={mode}
         />
       ))}
     </div>

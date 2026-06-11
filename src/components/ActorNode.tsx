@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 import type { ActorId } from '../data/steps'
+import type { DemoMode } from '../App'
 
 type ActorConfig = {
   label: string
@@ -47,15 +48,54 @@ export const ACTOR_CONFIGS: Record<ActorId, ActorConfig> = {
   },
 }
 
+const MACHINE_ACTOR_CONFIGS: Record<ActorId, ActorConfig> = {
+  bt: {
+    label: 'BT / PSP',
+    sublabel: 'Control Layer',
+    icon: '🔐',
+    color: '#6C5CE7',
+    description: 'Holds credentials, enforces policy, records audit, and abstracts settlement rails.',
+  },
+  user: {
+    label: 'Business',
+    sublabel: 'Spend Owner',
+    icon: '🏢',
+    color: '#74B9FF',
+    description: 'Creates the authorized spend limit and delegates bounded authority to the agent.',
+  },
+  agent: {
+    label: 'Agent',
+    sublabel: 'Risk Research',
+    icon: '🤖',
+    color: '#A29BFE',
+    description: 'Consumes paid resources and signs VIUs inside the ASL.',
+  },
+  merchant: {
+    label: 'Merchant/API',
+    sublabel: 'Supplier Data',
+    icon: '📡',
+    color: '#55EFC4',
+    description: 'Returns 402 challenges, verifies VIUs locally, and redeems the latest cumulative tab.',
+  },
+  network: {
+    label: 'Network',
+    sublabel: 'Mastercard',
+    icon: '💳',
+    color: '#FD9644',
+    description: 'Validates the authority chain and settlement guarantee at redemption time.',
+  },
+}
+
 type Props = {
   id: ActorId
   isActive: boolean
   allGlow?: boolean
   position: { x: number; y: number }
+  mode?: DemoMode
 }
 
-export function ActorNode({ id, isActive, allGlow, position }: Props) {
-  const config = ACTOR_CONFIGS[id]
+export function ActorNode({ id, isActive, allGlow, position, mode = 'vi' }: Props) {
+  const config = mode === 'machine' ? MACHINE_ACTOR_CONFIGS[id] : ACTOR_CONFIGS[id]
   const active = isActive || allGlow
 
   return (
