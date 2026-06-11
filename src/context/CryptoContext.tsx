@@ -10,6 +10,17 @@ export type ActorKeys = {
   merchant: KeyPairWithJwk
 }
 
+export type MachinePaymentArtifacts = {
+  aslJwt: string
+  aslId: string
+  channel: Record<string, unknown>
+  challenge402: Record<string, unknown>
+  vius: string[]
+  ledger: Array<Record<string, unknown>>
+  settlementJwt: string
+  summary: Record<string, unknown>
+}
+
 export type CryptoContextValue = {
   ready: boolean
   keys: ActorKeys | null
@@ -20,6 +31,7 @@ export type CryptoContextValue = {
   L3a: SdJwtResult | null
   L3b: SdJwtResult | null
   L1sdHash: string | null
+  machinePayments: MachinePaymentArtifacts | null
 }
 
 const CryptoContext = createContext<CryptoContextValue>({
@@ -32,6 +44,7 @@ const CryptoContext = createContext<CryptoContextValue>({
   L3a: null,
   L3b: null,
   L1sdHash: null,
+  machinePayments: null,
 })
 
 export function CryptoProvider({ children }: { children: React.ReactNode }) {
@@ -45,6 +58,7 @@ export function CryptoProvider({ children }: { children: React.ReactNode }) {
     L3a: null,
     L3b: null,
     L1sdHash: null,
+    machinePayments: null,
   })
 
   useEffect(() => {
@@ -196,5 +210,144 @@ async function buildCredentials(): Promise<Omit<CryptoContextValue, 'ready'>> {
   console.log('L1 sd_hash in L2:', L1sdHash)
   console.log('Keys generated:', Object.keys(keys).map(k => `${k}: ${keys[k as keyof ActorKeys].kid}`))
 
-  return { keys, L1, L2, checkoutJwt, checkoutHash, L3a, L3b, L1sdHash }
+  const machinePayments = await buildMachinePaymentArtifacts(keys, now)
+
+  return { keys, L1, L2, checkoutJwt, checkoutHash, L3a, L3b, L1sdHash, machinePayments }
+}
+
+async function buildMachinePaymentArtifacts(keys: ActorKeys, now: number): Promise<MachinePaymentArtifacts> {
+  const aslId = `asl_${crypto.randomUUID().slice(0, 8)}`
+  const channelId = `ch_${crypto.randomUUID().slice(0, 8)}`
+  const merchantId = 'supplier-risk-api'
+  const cap = 2500
+
+  const aslPayload = {
+    iss: 'https://controls.basis-theory.com',
+    sub: 'bt-business-demo',
+    aud: 'machine-payments-network',
+    iat: now,
+    exp: now + 3600,
+    type: 'authorized_spend_limit',
+    asl_id: aslId,
+    authority_chain: ['Mastercard', 'BT PSP', 'Demo Business', 'Risk Research Agent'],
+    scope: {
+      currency: 'USD',
+      max_amount_cents: cap,
+      merchant_categories: ['supplier-risk-data'],
+      allowed_merchants: [merchantId],
+      max_viu_sequence: 20,
+    },
+    funding_rail: {
+      selected: 'card_network_token',
+      alternatives: ['stablecoin_escrow', 'line_of_credit', 'virtual_card_fallback'],
+    },
+    cnf: { kid: keys.agent.kid, jwk: keys.agent.publicJwk },
+  }
+
+  const aslJwt = await new SignJWT(aslPayload)
+    .setProtectedHeader({ alg: 'ES256', kid: keys.credentialProvider.kid, typ: 'asl+jwt' })
+    .sign(keys.credentialProvider.privateKey)
+
+  const aslHash = await sha256Base64url(aslJwt)
+
+  const channel = {
+    channel_id: channelId,
+    asl_id: aslId,
+    asl_hash: aslHash,
+    agent: 'Risk Research Agent',
+    merchant: merchantId,
+    purpose: 'Supplier risk lookups',
+    currency: 'USD',
+    channel_cap_cents: cap,
+    expires_at: new Date((now + 3600) * 1000).toISOString(),
+    state: 'open',
+  }
+
+  const challenge402 = {
+    status: 402,
+    title: 'Payment Required',
+    merchant: merchantId,
+    channel_id: channelId,
+    request_id: 'req_vendor_screen_001',
+    line_item: 'Supplier risk score lookup',
+    amount_cents: 275,
+    currency: 'USD',
+    accepts: ['viu+jwt'],
+  }
+
+  const events = [
+    { sequence: 1, request_id: 'req_vendor_screen_001', description: 'Supplier risk score lookup', amount_cents: 275 },
+    { sequence: 2, request_id: 'req_sanctions_002', description: 'Sanctions list enrichment', amount_cents: 450 },
+    { sequence: 3, request_id: 'req_freight_003', description: 'Freight lane disruption check', amount_cents: 625 },
+  ]
+
+  let cumulative = 0
+  const ledger: Array<Record<string, unknown>> = []
+  const vius: string[] = []
+
+  for (const event of events) {
+    cumulative += event.amount_cents
+    ledger.push({
+      ...event,
+      cumulative_cents: cumulative,
+      remaining_cents: cap - cumulative,
+      verification: cumulative <= cap ? 'inside ASL' : 'over limit',
+    })
+
+    const viu = await new SignJWT({
+      iss: keys.agent.kid,
+      aud: merchantId,
+      iat: now + event.sequence,
+      exp: now + 300,
+      type: 'verifiable_iou',
+      viu_id: `viu_${event.sequence.toString().padStart(3, '0')}`,
+      asl_id: aslId,
+      channel_id: channelId,
+      sequence: event.sequence,
+      request_id: event.request_id,
+      amount_cents: event.amount_cents,
+      cumulative_amount_cents: cumulative,
+      currency: 'USD',
+      merchant: merchantId,
+      asl_hash: aslHash,
+    })
+      .setProtectedHeader({ alg: 'ES256', kid: keys.agent.kid, typ: 'viu+jwt' })
+      .sign(keys.agent.privateKey)
+
+    vius.push(viu)
+  }
+
+  const settlementJwt = await new SignJWT({
+    iss: merchantId,
+    aud: 'bt-machine-payments-settlement',
+    iat: now + 600,
+    type: 'viu_settlement_request',
+    asl_id: aslId,
+    channel_id: channelId,
+    latest_viu_hash: await sha256Base64url(vius[vius.length - 1]),
+    latest_sequence: 3,
+    amount_cents: cumulative,
+    currency: 'USD',
+    funding_rail: 'card_network_token',
+    settlement_path: ['Merchant PSP', 'Basis Theory', 'Mastercard', 'Business funding source'],
+    card_data_exposed_to_agent: false,
+  })
+    .setProtectedHeader({ alg: 'ES256', kid: keys.merchant.kid, typ: 'settlement+jwt' })
+    .sign(keys.merchant.privateKey)
+
+  const summary = {
+    status: 'COMPLETE',
+    protocol_family: 'Verifiable Intent + Machine Payments',
+    authority: 'ASL signed by BT/PSP layer and bounded by network rules',
+    channel: channelId,
+    total_api_calls: events.length,
+    cumulative_amount_usd: cumulative / 100,
+    cap_usd: cap / 100,
+    merchant_verified_locally: true,
+    settled_later: true,
+    bt_role: ['credential vault', 'policy enforcement', 'audit trail', 'funding rail abstraction'],
+    agent_held_pan: false,
+  }
+
+  return { aslJwt, aslId, channel, challenge402, vius, ledger, settlementJwt, summary }
 }

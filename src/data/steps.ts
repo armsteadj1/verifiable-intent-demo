@@ -1,6 +1,17 @@
 export type ActorId = 'bt' | 'user' | 'agent' | 'merchant' | 'network'
 
-export type DataDisplayType = 'json' | 'text' | 'checklist' | 'split-table' | 'sd-jwt' | 'keys'
+export type DataDisplayType =
+  | 'json'
+  | 'text'
+  | 'checklist'
+  | 'split-table'
+  | 'sd-jwt'
+  | 'keys'
+  | 'machine-keys'
+  | 'machine-json'
+  | 'machine-ledger'
+  | 'machine-checklist'
+  | 'funding-rails'
 
 export type Step = {
   id: number
@@ -113,5 +124,106 @@ export const steps: Step[] = [
     activeConnection: null,
     dataType: 'json',
     dataKey: 'summary',
+  },
+]
+
+export const machinePaymentSteps: Step[] = [
+  {
+    id: 1,
+    title: 'Participants Initialized',
+    narrative: 'Machine Payments starts from the same trust model as Verifiable Intent, but the user is now a business delegating a bounded spend channel to an agent.',
+    activeActors: ['bt', 'user', 'agent', 'merchant', 'network'],
+    activeConnection: null,
+    dataType: 'machine-keys',
+    dataKey: 'keys',
+  },
+  {
+    id: 2,
+    title: 'Authorized Spend Limit Created',
+    narrative: 'The business creates an ASL: a signed budget, scope, time window, merchant category, and funding rail. This is authority with walls, not a blank check.',
+    activeActors: ['user', 'bt', 'network'],
+    activeConnection: ['user', 'bt'],
+    dataType: 'sd-jwt',
+    dataKey: 'machineAsl',
+    demoBadge: true,
+    callout: 'Demo artifact only: this models the ASL shape without exposing Mastercard confidential material.',
+  },
+  {
+    id: 3,
+    title: 'Merchant Channel Opened',
+    narrative: 'The agent opens a spend channel with a merchant/API under the ASL. The channel inherits the cap and adds merchant-specific scope.',
+    activeActors: ['agent', 'merchant', 'bt'],
+    activeConnection: ['agent', 'merchant'],
+    dataType: 'machine-json',
+    dataKey: 'machineChannel',
+    demoBadge: true,
+  },
+  {
+    id: 4,
+    title: 'Merchant Returns 402',
+    narrative: 'Instead of a normal checkout, the merchant returns HTTP 402 with price and payment metadata. The agent can now satisfy the request inside the channel.',
+    activeActors: ['merchant', 'agent'],
+    activeConnection: ['merchant', 'agent'],
+    dataType: 'machine-json',
+    dataKey: 'machineChallenge',
+    demoBadge: true,
+  },
+  {
+    id: 5,
+    title: 'Agent Signs VIU #1',
+    narrative: 'The agent signs a Verifiable IOU for the first paid call. No card is charged per call; the VIU is a cumulative promise inside the authorized channel.',
+    activeActors: ['agent', 'merchant'],
+    activeConnection: ['agent', 'merchant'],
+    dataType: 'sd-jwt',
+    dataKey: 'machineViu1',
+    demoBadge: true,
+  },
+  {
+    id: 6,
+    title: 'Running Tab Updates',
+    narrative: 'Two more API calls update the cumulative tab. The latest VIU supersedes the prior one, giving the merchant a single redeemable state.',
+    activeActors: ['agent', 'merchant'],
+    activeConnection: ['agent', 'merchant'],
+    dataType: 'machine-ledger',
+    dataKey: 'machineLedger',
+    demoBadge: true,
+    callout: 'Authorize once, transact many times, settle later.',
+  },
+  {
+    id: 7,
+    title: 'Merchant Verifies Locally',
+    narrative: 'The merchant verifies the signed VIU chain locally: signature, sequence, channel id, expiry, merchant scope, and cumulative amount below the cap.',
+    activeActors: ['merchant', 'agent', 'bt'],
+    activeConnection: ['merchant', 'bt'],
+    dataType: 'machine-checklist',
+    dataKey: 'machineVerifyMerchant',
+  },
+  {
+    id: 8,
+    title: 'Settlement Redeems Latest VIU',
+    narrative: 'The merchant submits the latest cumulative VIU for redemption. BT/PSP and Mastercard validate the authority chain and settle against the selected funding rail.',
+    activeActors: ['merchant', 'bt', 'network'],
+    activeConnection: ['merchant', 'bt'],
+    dataType: 'sd-jwt',
+    dataKey: 'machineSettlement',
+    demoBadge: true,
+  },
+  {
+    id: 9,
+    title: 'Funding Rail Is Pluggable',
+    narrative: 'The same spend-channel model can settle against card/network token, stablecoin escrow, line of credit, or virtual card fallback. BT keeps the agent interface consistent.',
+    activeActors: ['bt', 'network', 'user'],
+    activeConnection: ['bt', 'network'],
+    dataType: 'funding-rails',
+    dataKey: 'machineFunding',
+  },
+  {
+    id: 10,
+    title: 'Machine Payment Complete',
+    narrative: 'The agent paid repeatedly within a bounded mandate. The merchant got local verification. The network got settlement. BT anchored control, credentialing, and audit.',
+    activeActors: ['bt', 'user', 'agent', 'merchant', 'network'],
+    activeConnection: null,
+    dataType: 'machine-json',
+    dataKey: 'machineSummary',
   },
 ]

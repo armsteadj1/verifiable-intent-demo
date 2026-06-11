@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { useEffect } from 'react'
+import clsx from 'clsx'
+import type { DemoMode } from '../App'
 
-export function Header() {
+type Props = {
+  mode: DemoMode
+  onModeChange: (mode: DemoMode) => void
+}
+
+export function Header({ mode, onModeChange }: Props) {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
@@ -14,14 +21,33 @@ export function Header() {
 
   return (
     <>
-      <header className="border-b border-[#1a1a1a] bg-[#090909] px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-[#1a1a1a] bg-[#090909] px-6 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-mono font-semibold text-[#f0f0f0] tracking-wider text-sm">
-            VERIFIABLE INTENT DEMO
+            AGENTIC COMMERCE DEMO
           </h1>
           <span className="text-xs font-mono text-[#636E72] border border-[#1a1a1a] rounded px-2 py-0.5">
-            Autonomous Mode
+            {mode === 'machine' ? 'Machine Payments' : 'Autonomous Mode'}
           </span>
+          <div className="flex rounded border border-[#1a1a1a] overflow-hidden">
+            {[
+              { id: 'vi' as const, label: 'Verifiable Intent' },
+              { id: 'machine' as const, label: 'Machine Payments' },
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => onModeChange(item.id)}
+                className={clsx(
+                  'px-3 py-1 text-xs font-mono transition-colors',
+                  mode === item.id
+                    ? 'bg-[#A29BFE] text-[#090909]'
+                    : 'bg-[#0d0d0d] text-[#888] hover:text-[#f0f0f0]'
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -63,10 +89,15 @@ export function Header() {
 
             <div className="space-y-3 text-sm text-[#888] font-sans leading-relaxed">
               <p>
-                <strong className="text-[#f0f0f0]">Verifiable Intent</strong> is a protocol for AI agents to make purchases cryptographically — without exposing payment details to merchants or cart details to payment networks.
+                <strong className="text-[#f0f0f0]">{mode === 'machine' ? 'Machine Payments' : 'Verifiable Intent'}</strong>{' '}
+                {mode === 'machine'
+                  ? 'turns delegated authority into a bounded spend channel for repeated agent purchases.'
+                  : 'is a protocol for AI agents to make purchases cryptographically — without exposing payment details to merchants or cart details to payment networks.'}
               </p>
               <p>
-                This demo implements the <strong className="text-[#A29BFE]">Autonomous Mode</strong>: a 3-layer SD-JWT credential chain where the user sets constraints, the agent acts within them, and every step is cryptographically verifiable.
+                {mode === 'machine'
+                  ? 'This page models ASLs, HTTP 402 challenges, cumulative VIUs, and delayed settlement using local demo keys and mock artifacts.'
+                  : <>This demo implements the <strong className="text-[#A29BFE]">Autonomous Mode</strong>: a 3-layer SD-JWT credential chain where the user sets constraints, the agent acts within them, and every step is cryptographically verifiable.</>}
               </p>
               <p>
                 All keypairs are real ES256 (P-256) credentials generated in your browser using the Web Crypto API. No data leaves your device.

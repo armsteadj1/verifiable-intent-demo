@@ -5,26 +5,51 @@ import { ActorGraph } from './components/ActorGraph'
 import { StepPanel } from './components/StepPanel'
 import { StepControls } from './components/StepControls'
 import { LoadingScreen } from './components/LoadingScreen'
-import { steps } from './data/steps'
+import { machinePaymentSteps, steps } from './data/steps'
+
+export type DemoMode = 'vi' | 'machine'
+
+function getModeFromHash(): DemoMode {
+  return window.location.hash === '#/machine-payments' ? 'machine' : 'vi'
+}
 
 function DemoApp() {
+  const [mode, setMode] = useState<DemoMode>(getModeFromHash)
   const [currentStep, setCurrentStep] = useState(1)
   const [isAutoPlay, setIsAutoPlay] = useState(false)
   const { ready } = useCrypto()
   const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  const step = steps[currentStep - 1]
+  const activeSteps = mode === 'machine' ? machinePaymentSteps : steps
+  const step = activeSteps[currentStep - 1]
+
+  useEffect(() => {
+    const onHashChange = () => {
+      setMode(getModeFromHash())
+      setCurrentStep(1)
+      setIsAutoPlay(false)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  const selectMode = (nextMode: DemoMode) => {
+    window.location.hash = nextMode === 'machine' ? '/machine-payments' : '/verifiable-intent'
+    setMode(nextMode)
+    setCurrentStep(1)
+    setIsAutoPlay(false)
+  }
 
   // Scroll right panel to top on step change
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [currentStep])
-  const isDone = currentStep === steps.length
+  }, [currentStep, mode])
+  const isDone = currentStep === activeSteps.length
   const allGlow = isDone
 
   const goNext = () => {
-    if (currentStep < steps.length) setCurrentStep(s => s + 1)
+    if (currentStep < activeSteps.length) setCurrentStep(s => s + 1)
   }
   const goPrev = () => {
     if (currentStep > 1) setCurrentStep(s => s - 1)
@@ -39,7 +64,7 @@ function DemoApp() {
     if (isAutoPlay && !isDone) {
       autoPlayRef.current = setInterval(() => {
         setCurrentStep(s => {
-          if (s >= steps.length) {
+          if (s >= activeSteps.length) {
             setIsAutoPlay(false)
             return s
           }
@@ -50,13 +75,13 @@ function DemoApp() {
       if (autoPlayRef.current) clearInterval(autoPlayRef.current)
     }
     return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current) }
-  }, [isAutoPlay, isDone])
+  }, [isAutoPlay, isDone, activeSteps.length])
 
   if (!ready) return <LoadingScreen />
 
   return (
     <div className="min-h-screen bg-[#090909] flex flex-col">
-      <Header />
+      <Header mode={mode} onModeChange={selectMode} />
 
       <main className="flex-1 flex flex-col lg:flex-row gap-0 overflow-hidden">
         {/* Left panel — Actor Graph */}
@@ -65,13 +90,16 @@ function DemoApp() {
             activeActors={step.activeActors}
             activeConnection={step.activeConnection}
             allGlow={allGlow}
+            mode={mode}
           />
           <div className="mt-4 text-xs font-mono text-[#3a3a3a] text-center">
-            {step.activeActors.length === 5 && !step.activeConnection
-              ? 'All parties active'
-              : step.activeConnection
-              ? `${step.activeConnection[0]} → ${step.activeConnection[1]}`
-              : 'Initialization'}
+            {mode === 'machine'
+              ? 'ASL → channel → VIU → settlement'
+              : step.activeActors.length === 5 && !step.activeConnection
+                ? 'All parties active'
+                : step.activeConnection
+                  ? `${step.activeConnection[0]} → ${step.activeConnection[1]}`
+                  : 'Initialization'}
           </div>
         </div>
 
@@ -81,7 +109,7 @@ function DemoApp() {
             <StepPanel
               step={step}
               stepNumber={currentStep}
-              totalSteps={steps.length}
+              totalSteps={activeSteps.length}
             />
           </div>
 
@@ -89,7 +117,7 @@ function DemoApp() {
           <div className="border-t border-[#1a1a1a] p-4 bg-[#090909]">
             <StepControls
               currentStep={currentStep}
-              totalSteps={steps.length}
+              totalSteps={activeSteps.length}
               isAutoPlay={isAutoPlay}
               onPrev={goPrev}
               onNext={goNext}
